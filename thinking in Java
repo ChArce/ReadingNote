@@ -1,0 +1,60 @@
+## JAVA 编程思想
+
+### 第13章 
+
+### 第14章 类型信息
+
+Class对象只在需要的时候才会加载，static的初始化在类加载的时候进行.
+
+如果运行时需要使用类型信息，首先要获得对恰当的Class对象的引用，Class.forName()可以不需要为了获得Class引用而持有该类型的对象。当然如果此时你有一个感兴趣的类型的对象，那么可以使用getClass()方法来获取Class引用.
+
+```java
+Class t = Class.forName(T);
+t.newInstance();
+T t = new T();
+```
+上述两个创建对象的效果是一样子的，但是机制不一样
+   1. newInstance()必须保证类已经加载并且已经链接，而new可以没有被加载
+   2. newInstance()只能调用无参的构造函数，而new生成对象没有这个限制。
+
+另外还有一种方法来生成对Class对象的引用,如 `FancyToy.class`, 这种方法在编译时就会受到检查，也更高效。
+对于基本数据类型，还有一个标准字段TYPE。如:
+| int.class | Integer.TYPE |
+| byte.class | Byte.TYPE |
+
+
+```java
+Class<? extends Number> bounded = int.class;
+bounded = double.class;
+bounded = Number.class;
+```
+
+**对于RTTI和反射之间的真正的区别在于，对RTTI来说，编译器在编译时打开和检查.class文件。而对于反射机制来说，.class文件在编译时是不可获取的，所以是在运行时打开和检查.class文件**
+
+
+
+
+### 第21章 并发 ###
+
+线程可以驱动任务，因此需要一种描述认为任务的方式，可以使用Runnable接口来提供，即实现Runnable接口并编写run()方法，如下:
+```java
+public class A implements Runnable {
+    /*something and some methods*/
+    public void run() {
+        /*do something*/
+    }
+}
+```
+此时它不会产生任何内在的线程能力。要实现线程行为，必须显示地将一个任务附着在线程上。
+```java
+public class BasicThread {
+    public static void main(String[] args) {
+        Thread t = new Thread(new A());
+        t.start();
+    }
+}
+```
+
+
+
+
