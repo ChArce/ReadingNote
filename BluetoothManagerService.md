@@ -269,4 +269,163 @@ void updateAdapterState(int prevState, int newState){
                       break;
 
 ```
-上面的代码同样会先移除ENABLE_TIMEOUT，然后将状态机转移到BleOnState
+上面的代码同样会先移除ENABLE_TIMEOUT，然后将状态机转移到BleOnState。之后会收到USER_TURN_ON消息，那么对于该消息的处理为：
+```java
+               case USER_TURN_ON:
+                     notifyAdapterStateChange(BluetoothAdapter.STATE_TURNING_ON);
+                     mPendingCommandState.setTurningOn(true);
+                     transitionTo(mPendingCommandState);
+                     sendMessageDelayed(BREDR_START_TIMEOUT, BREDR_START_TIMEOUT_DELAY);
+                     adapterService.startCoreServices();
+
+```
+首先仍然会广播adapter 状态的变化给BluetoothManagerService,然后将状态机设置为PendingCommandState，并延迟发送一个BREDR_START_TIMEOUT，之后调用AdapterService.startCoreService(),我们来看下startCoreService()的代码，
+```java
+    void startCoreServices()
+    {
+        debugLog("startCoreServices()");
+        Class[] supportedProfileServices = ProfileConfig.getSupportedProfiles();
+
+        checkAndSetDeviceModeProperty();
+
+        //Start profile services
+        if (!mProfilesStarted && supportedProfileServices.length >0) {
+            //Startup all profile services
+            setProfileServiceState(supportedProfileServices,BluetoothAdapter.STATE_ON);
+        }else {
+            debugLog("startCoreProfiles(): Profile Services alreay started");
+            mAdapterStateMachine.sendMessage(mAdapterStateMachine.obtainMessage(AdapterState.BREDR_STARTED));
+        }
+
+        try {
+             Log.d(TAG, "manully start BluetoothAdvancedService...");
+             Intent intent = new Intent(this, BluetoothAdvancedService.class);
+             startService(intent);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+```
+checkAndSetDeviceModeProperty()首先会从SharePreference中获取上一次保存的蓝牙模式是sink还是source，如果没有的话怎么会从资源文件中获取默认的模式。然后start 相应的Profile。
+
+如果有Profile起来的话会会调用AdapterService.onProfileServiceStateChanged(),进而到processProfileServiceStateChanged()，我们来看下主要的代码：
+```java
+          if (isBleTurningOn) {
+              if (serviceName.equals("com.android.bcm.bluetooth.gatt.GattService")) {
+                  debugLog("GattService is started");
+                  mAdapterStateMachine.sendMessage(mAdapterStateMachine.obtainMessage(AdapterState.BLE_STARTED));
+                  return;
+              }
+
+          } else if(isBleTurningOff) {
+              if (serviceName.equals("com.android.bcm.bluetooth.gatt.GattService")) {
+                  debugLog("GattService stopped");
+                  mAdapterStateMachine.sendMessage(mAdapterStateMachine.obtainMessage(AdapterState.BLE_STOPPED));
+                  return;
+              }
+
+          } else if (isTurningOff) {
+              //On to BLE_ON
+              //Process stop or disable pending
+              //Check if all services are stopped if so, do cleanup
+              synchronized (mProfileServicesState) {
+                  Iterator<Map.Entry<String,Integer>> i = mProfileServicesState.entrySet().iterator();
+                  while (i.hasNext()) {
+                      Map.Entry<String,Integer> entry = i.next();
+                      debugLog("Service: " + entry.getKey());
+                      if (entry.getKey().equals("com.android.bcm.bluetooth.gatt.GattService")) {
+                          debugLog("Skip GATT service - already started before");
+                          continue;
+                      }
+                      if (BluetoothAdapter.STATE_OFF != entry.getValue()) {
+                          debugLog("onProfileServiceStateChange() - Profile still running: "
+                              + entry.getKey());
+                          return;
+                      }
+                  }
+              }
+              debugLog("onProfileServiceStateChange() - All profile services stopped...");
+              //Send message to state machine
+              mProfilesStarted=false;
+              mAdapterStateMachine.sendMessage(mAdapterStateMachine.obtainMessage(AdapterState.BREDR_STOPPED));
+
+          } else if (isTurningOn) {
+              //Process start pending
+              //Check if all services are started if so, update state
+              synchronized (mProfileServicesState) {
+                  Iterator<Map.Entry<String,Integer>> i = mProfileServicesState.entrySet().iterator();
+                  while (i.hasNext()) {
+                      Map.Entry<String,Integer> entry = i.next();
+                      debugLog("Service: " + entry.getKey());
+                      if (entry.getKey().equals("com.android.bcm.bluetooth.gatt.GattService")) {
+                          debugLog("Skip GATT service - already started before");
+                          continue;
+                      }
+                      if (BluetoothAdapter.STATE_ON != entry.getValue()) {
+                          debugLog("onProfileServiceStateChange() - Profile still not running:"
+                              + entry.getKey());
+                          return;
+                      }
+                  }
+              }
+              debugLog("onProfileServiceStateChange() - All profile services started.");
+              mProfilesStarted=true;
+              //Send message to state machine
+              mAdapterStateMachine.sendMessage(mAdapterStateMachine.obtainMessage(AdapterState.BREDR_STARTED));
+          }
+
+
+```
+根据isTurningOn,isTurningOff,isBleTurningOn,isBleTurningOff变量的值可以确定当前bt是处于什么状态的，我们这里主要分析当isTurningOn = true的情况，每次当有一个Profile起来，就会去遍历mProfileServicesState，只要有一个Profile不是STATE_ON状态那么就返回，认为当前所有的Profile还没完全起来，直到所有的Profile状态都为STATE_ON,这时候就会给AdapterStateMachine发送BREDR_STARTED消息。
+来看下对于BREDR_STARTED这个消息的处理：
+```java
+                  case BREDR_STARTED:
+                      //Remove start timeout
+                      removeMessages(BREDR_START_TIMEOUT);
+                      adapterProperties.onBluetoothReady();
+                      mPendingCommandState.setTurningOn(false);
+                      transitionTo(mOnState);
+                      notifyAdapterStateChange(BluetoothAdapter.STATE_ON);
+                      break;
+
+```
+首先会remove掉之前设置的TIMEOUT消息，然后设置AdapterProperties的state为STATE_ON，并且将状态机设置为OnState。
+当进入OnState的时候，判断如果之前状态是TURNING_ON的话那么这时候说明Adapter是刚enabled起来的，那么会自动连接相应的蓝牙设备，如下:
+```java
+        private void autoConnectProfiles(){
+           HeadsetService  hsService = HeadsetService.getHeadsetService();
+           A2dpService a2dpService = A2dpService.getA2dpService();
+           A2dpSinkService a2dpSinkSservice = A2dpSinkService.getA2dpSinkService();
+           HfDeviceService  hfDeviceService = HfDeviceService.getHfDeviceService();
+
+           BluetoothDevice bondedDevices[] = getBondedDevices();
+           if ((bondedDevices == null) || ((hsService == null) && (a2dpService == null)
+                      && (hfDeviceService == null) && (a2dpSinkSservice == null))) {
+               return;
+           }
+
+           for (BluetoothDevice device : bondedDevices) {
+               if ((hsService != null) &&
+                      (hsService.getPriority(device) == BluetoothProfile.PRIORITY_AUTO_CONNECT) ){
+                   hsService.connect(device);
+               } else  if ((hfDeviceService != null) &&
+                      (hfDeviceService.getPriority(device) ==
+                          BluetoothProfile.PRIORITY_AUTO_CONNECT) ){
+                   hfDeviceService.connect(device);
+               }
+
+               if ((a2dpService != null) &&
+                      (a2dpService.getPriority(device) == BluetoothProfile.PRIORITY_AUTO_CONNECT ||
+                       a2dpService.getPriority(device) == BluetoothProfile.PRIORITY_ON)){
+                   a2dpService.connect(device);
+               } else  if ((a2dpSinkSservice != null) &&
+                      (a2dpSinkSservice.getPriority(device) == BluetoothProfile.PRIORITY_AUTO_CONNECT ||
+                       a2dpSinkSservice.getPriority(device) == BluetoothProfile.PRIORITY_ON)){
+                   a2dpSinkSservice.connect(device);
+               }
+           }
+       }
+
+```
+这里针对配对成功的设备逐个遍历，查看是否是PRIORITY_AUTO_CONNECT 还是 PRIORITY_ON的，如果是的话就进行connect，判断的协议是HeadsetService、HandsFreeService、A2dpService和A2dpSinkService。
