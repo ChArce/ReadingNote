@@ -128,6 +128,147 @@ iter1 - iter2 得到的difference_type的signed类型
 
 
 
+##第7章 函数
+1. 给函数传递参数
+2. 从函数返回值
+3. 内联函数
+4. 类成员函数
+5. 重载函数
+6. 函数指针
+
+函数不能返回另一个函数或者内置数组类型，但是可以返回指向函数的指针。 int \*foo_bar()
+
+
+如果形参具有非引用类型，则复制实参的值；如果形参为引用类型，则它只是实参的别名。
+
+引用形参 void swap(int i, int j)()   void swap(int &i, int &j)()
+
+应该将不需要修改的引用形参定义为const引用，普通的非const引用形参在使用时不太灵活。这样子的形参既不能用const对象初始化，也不能用字面值或产生右值的表示式实参初始化
+
+
+
+int \*&v1 v1是一个引用，指向int型对象
+
+
+
+如果是数组形参的话，最好是定义为指针，明确表示操纵的是指向数组元素的指针，而不是数组本身。
+如果形参定义成数组形式，可以写长度  编译器会忽略。
+void printValue(const int ia[10]){}
+
+
+void f(const int \*){}
+void f(int (&arr)[10]) 这时候编译器会检查实参和形参的长度大小
+
+
+int& arr[10]
+int (&arr)[10]
+
+void printValus(int matrix[][10], int rowSize)
+
+int main(int argc, char \*\*argv){}
+
+可变形参
+void foo(parm_list, ...);
+void foo(...);
+
+
+
+
+#千万不要返回局部对象的引用
+
+返回引用的函数可以返回一个左值
+```C++
+char &get_val(string &str, string::size_type ix) 
+{
+	return str[ix];
+}
+
+int main()
+{
+	string s("hello");
+	get_val(s, 0)  = 'H';
+	cout<< s<< endl;
+	return 0;
+}
+```
+
+默认实参
+string screenInit(string::size_type height=24,
+				  string::size_type width=80,
+				  char background = ''){}
+
+默认实参只能用来替换函数调用缺少的尾部实参，即如果给width实参了，那么height必须也有实参。
+
+
+指定默认实参只能一次，通常是在函数生命的时候指定默认实参
+
+#局部对象
+自动对象
+在函数里面创建的局部变量 如果是未初始化的内置类型局部变量，其初值是不确定的。
+
+静态局部对象  static 
+
+内联函数 inline  内联函数应该放在头文件中定义
+
+类的成员函数
+函数原型必须在类中定义 但是函数体可以在类中也可以在类外定义
+成员函数可以访问该类的private成员
+
+除了static成员函数之外，每个成员函数都有一个额外的、隐含的形参this，调用成员函数时，形参this初始化为调用函数的对象的地址。
+
+bool same_isbn(const Sales_item &rhs) const {}
+const成员函数 改变了形参this的类型 指向const对象，常量成员函数不能修改调用该函数的对象
+
+类的构造函数
+构造函数的初始化列表  Sales_item():unit_sold(0), revenue(0.0) {}
+
+构造函数的初始化列表和构造函数的函数体
+
+编译器会合成默认构造函数
+
+重载函数
+重载只是会根据形参的个数和类型进行区分，不会根据返回类型和默认实参进行区分，const类型对于非引用形参是不区分的，但是对于引用形参是区分的 如：
+int func(int * a)    int func(const int\* a)
+
+局部声明的函数会屏蔽外层的同名函数而不是重载
+
+
+重载函数的函数匹配，精确匹配优先于需要类型转换的匹配 
+
+
+函数指针
+bool (\*pf)(const string &, const string &)
+
+typedef简化函数指针的定义
+typedef bool (\*cmpFcn)(const string &, const string &)
+
+函数指针形参
+void useBigger(const string &, const string &, 
+							   bool(const string &, const string&))
+等价于
+void useBigger(const string &, const string &,
+							   bool (*)(const string &, const string &))
+
+返回指向函数的指针
+int (\*ff(int))(int \*, int)    ff(int)是一个函数  这个函数返回一个函数指针 int (\*)(int \*, int)
+
+指向重载函数的指针   指针的类型必须与重载函数精确匹配
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
