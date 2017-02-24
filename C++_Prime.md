@@ -258,22 +258,39 @@ int (\*ff(int))(int \*, int)    ff(int)是一个函数  这个函数返回一个
 
 
 
+###标准IO库
+
+istream  ostream cin  cout  cerr >> <<
 
 
+         iostrea
 
 
+如果函数有基类类型的引用形参时，可以给函数传递派生类型的引用对象
 
+wchar_t读取宽字符 相应的也会有库来处理 如wiostream wfstream wstringstream
 
+IO对象不可复制和赋值，因此函数形参和返回值不能不能为流类型，必须传递或者返回指向该对象的指针或者引用。
 
+可以通过条件状态函数获取流的状态信息，来判断一个流是否是有效的。如  s.eof() s.bad()等
+if(cin) {
+	/*do something*/
+}
 
+while(cin>>word) {}
+if直接检查cin流状态是否有效  而while检查条件表达式返回的流。
 
+可以调用tie函数把输入流和输出流绑定到一起。
+cin.tie(&cout)
+cin.tie(0)
 
-
-
-
-
-
-
-
+文件模式
+in 打开文件做读操作
+out 打开文件做写操作
+app 在每次写之前找到文件尾
+ate 打开文件后立即将文件定位到文件尾
+trunc 打开文件时清空已经存在的文件流
+binary 以二进制形式进行文件操作
+模式是文件的属性 不是流的属性
 
 
