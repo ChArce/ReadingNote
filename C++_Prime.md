@@ -374,3 +374,41 @@ s.compare(args);
 #include<stack>
 #include<queue> 队列和优先级队列
 
+
+
+
+
+
+###关联容器
+map set multimap multiset
+#include<map>
+#include<set>
+
+pair类型  #include<utility>
+pair<T1, T2> p;
+make_pair(v1, v2);
+p.first
+p.second
+
+typedef pair<string, string> Author
+Author author("111", "222")
+
+
+map<K, V>::key_type 键的类型
+map<K, V>::mapped_type 值的类型
+map<K, V>::value_type pair类型 pair<const key_type, mapped_type>
+
+使用下标访问map时，如果没有则会创建一个新的键值对
+
+不修改map对象的查询操作
+map.count(k) 返回k的出现次数
+map.find(k) 返回迭代器
+
+set类型
+
+在multimap multiset中查找元素
+m.lower_bound(k);
+m.upper_bound(k);
+m.equal_range(k); 返回等价于(m.lower_bound(k), m.upper_bound(k))
+
+
