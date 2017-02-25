@@ -293,4 +293,84 @@ trunc 打开文件时清空已经存在的文件流
 binary 以二进制形式进行文件操作
 模式是文件的属性 不是流的属性
 
+###顺序容器
+标准库定义三种顺序容器  vector list deque
+三种顺序容器适配器  stack  queue priority_queue
+#include<vector>
+#include<list>
+#include<deque>
+
+
+容器元素初始化
+C<T> c;
+C c(c2);
+C c(b, e);
+C c(n, t);
+C c(n);
+
+接受容器大小做形参的构造函数只适用于顺序容器，而关联容器不支持这种初始化
+
+容易元素类型必须有以下两个约束：
+1. 元素类型必须支持赋值运算
+2. 元素类型的对象必须可以复制
+引用不支持一般意义的赋值运算，因此没有元素是引用类型的容器
+
+输入输出库类型不支持赋值或者复制
+
+vector和deque因为支持随机访问，所以可以对迭代器进行算术运算
+
+一些修改容器内在状态或者移动容器内元素的操作都可能会使得迭代器失效
+
+value_type 元素类型
+reference = value_type&
+const_reference
+这三种类型使程序员无须直接知道容器元素的真正类型。
+
+
+iterator  reverse_iterator const_iterator const_reverse_iterator
+
+顺序容器都支持push_back操作
+而list和deque容器还支持push_front操作，在容器首部插入新元素
+
+顺序容器大小的操作
+c.size() c.max_size() c.empty()  c.resize(n) c.resize(n, t);
+
+顺序容器元素的访问
+c.back() 最后一个元素的引用
+c.front() 第一个元素的引用
+c[n] ,c.at(n);  使用at函数访问元素的话会根下标是否有效抛出out_of_range异常
+
+删除元素
+c.erase(p);
+c.erase(b, e);
+c.clear();
+c.pop_back();
+c.pop_front(); 只适用于list或者deque容器
+
+
+容器的赋值运算c1 = c2 只能在容器类型和元素类型都相同的时候  如果在不同类型的容器内，元素类型不同但可以兼容 那么可以使用c.assign();
+
+swap操作不会引起迭代器失效  svec1.swap(svec2)
+
+vector容器的自增长  capatity() reserve() ;
+
+string可以视为字符容器
+s.substr(); 返回s的子串
+s.append();
+s.replace();
+
+s.find(args);
+s.rfind();
+s.find_first_of();
+s.find_last_of();
+s.find_first_not_of();
+s.find_last_not_of();
+
+s.compare(args);
+
+顺序容器适配器 queue stack  priority_queue
+适配器通用的操作 size_type value_type container_type 
+
+#include<stack>
+#include<queue> 队列和优先级队列
 
